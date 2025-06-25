@@ -72,7 +72,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+char* parsed_ydb_global_ref = NULL;
 void yyerror(const char *s);
 int yylex(void);
 
@@ -508,8 +508,8 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int8 yyrline[] =
 {
-       0,    29,    29,    37,    40,    50,    56,    62,    68,    73,
-      78,    83,    88
+       0,    29,    29,    40,    43,    54,    61,    68,    75,    80,
+      86,    91,    96
 };
 #endif
 
@@ -1082,116 +1082,125 @@ yyreduce:
   case 2: /* jsonpath: DOLLAR selector_list  */
 #line 29 "jsonpath.y"
                          {
-        printf("✅ Valid JSONPath expression\n");
-        printf("Parsed Path: $%s\n", (yyvsp[0].path));
+        size_t len = strlen("^store") + strlen((yyvsp[0].path)) + 1;
+        parsed_ydb_global_ref = malloc(len + 1);
+        sprintf(parsed_ydb_global_ref, "^store%s", (yyvsp[0].path));
+        // printf("✅ Valid JSONPath expression\n");
+        // printf("YottaDB Global Reference: %s\n", result);
         free((yyvsp[0].path));
+        // free(result);
     }
-#line 1090 "jsonpath.tab.c"
+#line 1094 "jsonpath.tab.c"
     break;
 
   case 3: /* selector_list: selector  */
-#line 37 "jsonpath.y"
+#line 40 "jsonpath.y"
              {
         (yyval.path) = (yyvsp[0].path);
     }
-#line 1098 "jsonpath.tab.c"
+#line 1102 "jsonpath.tab.c"
     break;
 
   case 4: /* selector_list: selector_list selector  */
-#line 40 "jsonpath.y"
+#line 43 "jsonpath.y"
                              {
         size_t len = strlen((yyvsp[-1].path)) + strlen((yyvsp[0].path)) + 1;
-        (yyval.path) = (char*) malloc(len + 1);
-        sprintf((yyval.path), "%s%s", (yyvsp[-1].path), (yyvsp[0].path));
+        char* tmp = malloc(len + 1);
+        sprintf(tmp, "%s%s", (yyvsp[-1].path), (yyvsp[0].path));
         free((yyvsp[-1].path));
         free((yyvsp[0].path));
+        (yyval.path) = tmp;
     }
-#line 1110 "jsonpath.tab.c"
+#line 1115 "jsonpath.tab.c"
     break;
 
   case 5: /* selector: DOT IDENTIFIER  */
-#line 50 "jsonpath.y"
+#line 54 "jsonpath.y"
                    {
-        size_t len = strlen((yyvsp[0].str)) + 2;
-        (yyval.path) = (char*) malloc(len);
-        sprintf((yyval.path), ".%s", (yyvsp[0].str));
+        size_t len = strlen((yyvsp[0].str)) + 4; // 2 for quotes + 2 for parentheses
+        char* tmp = malloc(len);
+        sprintf(tmp, "(\"%s\")", (yyvsp[0].str));
         free((yyvsp[0].str));
+        (yyval.path) = tmp;
     }
-#line 1121 "jsonpath.tab.c"
+#line 1127 "jsonpath.tab.c"
     break;
 
   case 6: /* selector: LBRACKET STRING RBRACKET  */
-#line 56 "jsonpath.y"
+#line 61 "jsonpath.y"
                                {
         size_t len = strlen((yyvsp[-1].str)) + 4;
-        (yyval.path) = (char*) malloc(len);
-        sprintf((yyval.path), "['%s']", (yyvsp[-1].str));
+        char* tmp = malloc(len);
+        sprintf(tmp, "(\"%s\")", (yyvsp[-1].str));
         free((yyvsp[-1].str));
+        (yyval.path) = tmp;
     }
-#line 1132 "jsonpath.tab.c"
+#line 1139 "jsonpath.tab.c"
     break;
 
   case 7: /* selector: RECURSIVE IDENTIFIER  */
-#line 62 "jsonpath.y"
+#line 68 "jsonpath.y"
                            {
-        size_t len = strlen((yyvsp[0].str)) + 3;
-        (yyval.path) = (char*) malloc(len);
-        sprintf((yyval.path), "..%s", (yyvsp[0].str));
+        size_t len = strlen((yyvsp[0].str)) + 8; // for "(\"..%s\")"
+        char* tmp = malloc(len);
+        sprintf(tmp, "(\"..%s\")", (yyvsp[0].str));
         free((yyvsp[0].str));
+        (yyval.path) = tmp;
     }
-#line 1143 "jsonpath.tab.c"
+#line 1151 "jsonpath.tab.c"
     break;
 
   case 8: /* selector: LBRACKET NUMBER RBRACKET  */
-#line 68 "jsonpath.y"
+#line 75 "jsonpath.y"
                                {
         char buf[32];
-        sprintf(buf, "[%d]", (yyvsp[-1].num));
+        snprintf(buf, sizeof(buf), "(%d)", (yyvsp[-1].num));
         (yyval.path) = strdup(buf);
     }
-#line 1153 "jsonpath.tab.c"
+#line 1161 "jsonpath.tab.c"
     break;
 
   case 9: /* selector: LBRACKET NUMBER COMMA NUMBER RBRACKET  */
-#line 73 "jsonpath.y"
+#line 80 "jsonpath.y"
                                             {
+        // Represent multi-index as a string subscript in quotes
         char buf[64];
-        sprintf(buf, "[%d,%d]", (yyvsp[-3].num), (yyvsp[-1].num));
+        snprintf(buf, sizeof(buf), "(\"[%d,%d]\")", (yyvsp[-3].num), (yyvsp[-1].num));
         (yyval.path) = strdup(buf);
     }
-#line 1163 "jsonpath.tab.c"
+#line 1172 "jsonpath.tab.c"
     break;
 
   case 10: /* selector: LBRACKET NUMBER COLON NUMBER RBRACKET  */
-#line 78 "jsonpath.y"
+#line 86 "jsonpath.y"
                                             {
         char buf[64];
-        sprintf(buf, "[%d:%d]", (yyvsp[-3].num), (yyvsp[-1].num));
+        snprintf(buf, sizeof(buf), "(\"[%d:%d]\")", (yyvsp[-3].num), (yyvsp[-1].num));
         (yyval.path) = strdup(buf);
     }
-#line 1173 "jsonpath.tab.c"
+#line 1182 "jsonpath.tab.c"
     break;
 
   case 11: /* selector: LBRACKET NUMBER COLON NUMBER COLON NUMBER RBRACKET  */
-#line 83 "jsonpath.y"
+#line 91 "jsonpath.y"
                                                          {
         char buf[64];
-        sprintf(buf, "[%d:%d:%d]", (yyvsp[-5].num), (yyvsp[-3].num), (yyvsp[-1].num));
+        snprintf(buf, sizeof(buf), "(\"[%d:%d:%d]\")", (yyvsp[-5].num), (yyvsp[-3].num), (yyvsp[-1].num));
         (yyval.path) = strdup(buf);
     }
-#line 1183 "jsonpath.tab.c"
+#line 1192 "jsonpath.tab.c"
     break;
 
   case 12: /* selector: LBRACKET WILDCARD RBRACKET  */
-#line 88 "jsonpath.y"
+#line 96 "jsonpath.y"
                                  {
-        (yyval.path) = strdup("[*]");
+        (yyval.path) = strdup("(*)");
     }
-#line 1191 "jsonpath.tab.c"
+#line 1200 "jsonpath.tab.c"
     break;
 
 
-#line 1195 "jsonpath.tab.c"
+#line 1204 "jsonpath.tab.c"
 
       default: break;
     }
@@ -1384,7 +1393,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 93 "jsonpath.y"
+#line 101 "jsonpath.y"
 
 
 void yyerror(const char *s) {

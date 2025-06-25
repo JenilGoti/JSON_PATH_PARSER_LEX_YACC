@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+char* parsed_ydb_global_ref = NULL;
 void yyerror(const char *s);
 int yylex(void);
 %}
@@ -27,66 +27,74 @@ int yylex(void);
 
 jsonpath:
     DOLLAR selector_list {
-        printf("✅ Valid JSONPath expression\n");
-        printf("Parsed Path: $%s\n", $2);
+        size_t len = strlen("^store") + strlen($2) + 1;
+        parsed_ydb_global_ref = malloc(len + 1);
+        sprintf(parsed_ydb_global_ref, "^store%s", $2);
+        // printf("✅ Valid JSONPath expression\n");
+        // printf("YottaDB Global Reference: %s\n", result);
         free($2);
+        // free(result);
     }
     ;
-
 selector_list:
     selector {
         $$ = $1;
     }
     | selector_list selector {
         size_t len = strlen($1) + strlen($2) + 1;
-        $$ = (char*) malloc(len + 1);
-        sprintf($$, "%s%s", $1, $2);
+        char* tmp = malloc(len + 1);
+        sprintf(tmp, "%s%s", $1, $2);
         free($1);
         free($2);
+        $$ = tmp;
     }
     ;
 
 selector:
     DOT IDENTIFIER {
-        size_t len = strlen($2) + 2;
-        $$ = (char*) malloc(len);
-        sprintf($$, ".%s", $2);
+        size_t len = strlen($2) + 4; // 2 for quotes + 2 for parentheses
+        char* tmp = malloc(len);
+        sprintf(tmp, "(\"%s\")", $2);
         free($2);
+        $$ = tmp;
     }
     | LBRACKET STRING RBRACKET {
         size_t len = strlen($2) + 4;
-        $$ = (char*) malloc(len);
-        sprintf($$, "['%s']", $2);
+        char* tmp = malloc(len);
+        sprintf(tmp, "(\"%s\")", $2);
         free($2);
+        $$ = tmp;
     }
     | RECURSIVE IDENTIFIER {
-        size_t len = strlen($2) + 3;
-        $$ = (char*) malloc(len);
-        sprintf($$, "..%s", $2);
+        size_t len = strlen($2) + 8; // for "(\"..%s\")"
+        char* tmp = malloc(len);
+        sprintf(tmp, "(\"..%s\")", $2);
         free($2);
+        $$ = tmp;
     }
     | LBRACKET NUMBER RBRACKET {
         char buf[32];
-        sprintf(buf, "[%d]", $2);
+        snprintf(buf, sizeof(buf), "(%d)", $2);
         $$ = strdup(buf);
     }
     | LBRACKET NUMBER COMMA NUMBER RBRACKET {
+        // Represent multi-index as a string subscript in quotes
         char buf[64];
-        sprintf(buf, "[%d,%d]", $2, $4);
+        snprintf(buf, sizeof(buf), "(\"[%d,%d]\")", $2, $4);
         $$ = strdup(buf);
     }
     | LBRACKET NUMBER COLON NUMBER RBRACKET {
         char buf[64];
-        sprintf(buf, "[%d:%d]", $2, $4);
+        snprintf(buf, sizeof(buf), "(\"[%d:%d]\")", $2, $4);
         $$ = strdup(buf);
     }
     | LBRACKET NUMBER COLON NUMBER COLON NUMBER RBRACKET {
         char buf[64];
-        sprintf(buf, "[%d:%d:%d]", $2, $4, $6);
+        snprintf(buf, sizeof(buf), "(\"[%d:%d:%d]\")", $2, $4, $6);
         $$ = strdup(buf);
     }
     | LBRACKET WILDCARD RBRACKET {
-        $$ = strdup("[*]");
+        $$ = strdup("(*)");
     }
     ;
 
