@@ -45,7 +45,7 @@ export PATH="/opt/homebrew/opt/flex/bin:$PATH"
 # 🚀 Getting Started
 ## 1. Clone the repository
 ```
-git clone https://github.com/yourusername/jsonpath-parser.git
+git clone https://github.com/JenilGoti/JSON_PATH_PARSER_LEX_YACC/
 cd jsonpath-parser
 ```
 ## 2. Build the parser
