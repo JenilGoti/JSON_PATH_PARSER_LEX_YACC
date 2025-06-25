@@ -2,29 +2,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 void yyerror(const char *s);
 int yylex(void);
 %}
+
 %debug
+
 %union {
     int num;
     char* str;
-    char* path; // for reconstructed path
+    char* path; // For reconstructed path
 }
 
-%token DOLLAR DOT LBRACKET RBRACKET WILDCARD
+// Token declarations
+%token DOLLAR DOT RECURSIVE LBRACKET RBRACKET COLON COMMA WILDCARD
+%token <str> STRING IDENTIFIER
 %token <num> NUMBER
-%token <str> IDENTIFIER
 
-
+// Non-terminal return types
 %type <path> jsonpath selector_list selector
+
 %%
 
 jsonpath:
     DOLLAR selector_list {
         printf("✅ Valid JSONPath expression\n");
-        printf("Parsed Path: $%s\n", $2); // $2 holds the full path after $
-        free($2); // clean up
+        printf("Parsed Path: $%s\n", $2);
+        free($2);
     }
     ;
 
@@ -33,7 +38,6 @@ selector_list:
         $$ = $1;
     }
     | selector_list selector {
-        // concatenate previous path with new selector
         size_t len = strlen($1) + strlen($2) + 1;
         $$ = (char*) malloc(len + 1);
         sprintf($$, "%s%s", $1, $2);
@@ -49,9 +53,36 @@ selector:
         sprintf($$, ".%s", $2);
         free($2);
     }
+    | LBRACKET STRING RBRACKET {
+        size_t len = strlen($2) + 4;
+        $$ = (char*) malloc(len);
+        sprintf($$, "['%s']", $2);
+        free($2);
+    }
+    | RECURSIVE IDENTIFIER {
+        size_t len = strlen($2) + 3;
+        $$ = (char*) malloc(len);
+        sprintf($$, "..%s", $2);
+        free($2);
+    }
     | LBRACKET NUMBER RBRACKET {
         char buf[32];
         sprintf(buf, "[%d]", $2);
+        $$ = strdup(buf);
+    }
+    | LBRACKET NUMBER COMMA NUMBER RBRACKET {
+        char buf[64];
+        sprintf(buf, "[%d,%d]", $2, $4);
+        $$ = strdup(buf);
+    }
+    | LBRACKET NUMBER COLON NUMBER RBRACKET {
+        char buf[64];
+        sprintf(buf, "[%d:%d]", $2, $4);
+        $$ = strdup(buf);
+    }
+    | LBRACKET NUMBER COLON NUMBER COLON NUMBER RBRACKET {
+        char buf[64];
+        sprintf(buf, "[%d:%d:%d]", $2, $4, $6);
         $$ = strdup(buf);
     }
     | LBRACKET WILDCARD RBRACKET {

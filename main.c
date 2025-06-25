@@ -11,7 +11,7 @@ int main() {
     char input[1024];
 
     // Optional: enable debug info from Bison parser
-    // yydebug = 1;
+    yydebug = 1;
 
     printf("Enter a JSONPath expression (or 'exit' to quit):\n");
 
